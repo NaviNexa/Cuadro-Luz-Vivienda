@@ -248,11 +248,14 @@
   }
 
   // ---------- search ----------
+  function stripAccents(s){
+    return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
   function searchTerms(q){
-    return (q||"").toLowerCase().trim().split(/\s+/).filter(Boolean);
+    return stripAccents((q||"").toLowerCase()).trim().split(/\s+/).filter(Boolean);
   }
   function textContainsAllTerms(text, terms){
-    text = (text||"").toLowerCase();
+    text = stripAccents((text||"").toLowerCase());
     return terms.every(function(t){ return text.indexOf(t) !== -1; });
   }
   function pointHaystack(pt){
