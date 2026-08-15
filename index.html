@@ -36,6 +36,8 @@
   @keyframes hintBlink { 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
   @keyframes searchPulse { 0%,100%{ box-shadow:0 0 8px 3px #FFF275, 0 0 18px 8px rgba(255,242,117,0.6); } 50%{ box-shadow:0 0 14px 6px #FFF275, 0 0 28px 14px rgba(255,242,117,0.4); } }
   .point-dot.search-hit { border-color:#FFF275 !important; background:#0B1A33 !important; color:#FFF275 !important; animation: searchPulse 0.9s ease-in-out infinite; z-index:5; }
+  @keyframes searchSelectedPulse { 0%,100%{ box-shadow:0 0 10px 4px #FFF275, 0 0 24px 12px rgba(255,242,117,0.8); } 50%{ box-shadow:0 0 18px 8px #FFF275, 0 0 36px 20px rgba(255,242,117,0.55); } }
+  .point-dot.search-selected { border-color:#FFF275 !important; border-width:3px !important; background:#FFF275 !important; color:#0B1A33 !important; animation: searchSelectedPulse 0.9s ease-in-out infinite; z-index:6; }
   .field-label { display:block; font-size:10px; font-weight:700; letter-spacing:0.5px; color:#9FB0C9; margin:0 0 3px 2px; text-transform:uppercase; }
   input[type=file] { display:none; }
   .device-row { display:flex; align-items:center; gap:8px; background:#1F3560; border-radius:8px; padding:8px 10px; margin-bottom:6px; }
@@ -236,9 +238,11 @@
       rec.interimResults = false;
       btn.style.color = C.warn;
       state.query = "";
+      state.highlight = null;
       render();
       rec.onresult = function(e){
         state.query = e.results[0][0].transcript;
+        state.highlight = null;
         render();
       };
       rec.onend = function(){ btn.style.color = ""; };
@@ -298,11 +302,20 @@
 
     // matched points (only shown as list when searching)
     var matched = state.query ? d.points.filter(function(p){ return matchesQuery(p, state.query); }) : null;
+    var allMatchedCount = matched ? matched.length : 0;
+    var isNarrowed = false;
+    if (matched && state.highlight && matched.some(function(p){ return p.id === state.highlight; })) {
+      matched = matched.filter(function(p){ return p.id === state.highlight; });
+      isNarrowed = allMatchedCount > 1;
+    }
     if (matched) {
       html += '<div style="margin-bottom:12px;">';
       if (matched.length === 0) {
         html += '<div style="color:'+C.creamDim+';font-size:13px;padding:10px 2px;">Sin resultados para "'+esc(state.query)+'".</div>';
       } else {
+        if (isNarrowed) {
+          html += '<button id="btnShowAllMatches" class="btn-ghost" style="width:100%;margin-bottom:8px;font-size:12.5px;padding:8px;">← Ver los '+allMatchedCount+' resultados</button>';
+        }
         matched.forEach(function(pt){
           var dvMatches = matchingDevices(pt, state.query);
           var dvHtml = dvMatches.length ? '<div style="font-size:12px;color:'+C.green+';margin-top:3px;">Controla: '+dvMatches.map(function(dv){ return esc(dv.name) + (dv.note ? ' ('+esc(dv.note)+')' : ''); }).join(", ")+'</div>' : '';
@@ -325,8 +338,10 @@
       var matchedIds = matched ? matched.map(function(p){ return p.id; }) : [];
       d.points.forEach(function(pt){
         var isSearchHit = matchedIds.indexOf(pt.id) !== -1;
-        var isHi = state.highlight === pt.id || isSearchHit;
-        html += '<button class="pointDot point-dot'+(pt.general?' general':'')+(pt.mainCutoff?' maincutoff':'')+(isSearchHit?' search-hit':'')+'" data-point="'+pt.id+'" style="left:'+pt.x+'%;top:'+pt.y+'%;width:'+(isHi?22:16)+'px;height:'+(isHi?22:16)+'px;font-size:8px;">'+ (pt.mainCutoff?'⏻':(pt.general?'⚡':esc(pointNumberLabel(pt)))) +'</button>';
+        var isSelected = state.highlight === pt.id && isSearchHit;
+        var dotClass = isSelected ? ' search-selected' : (isSearchHit ? ' search-hit' : '');
+        var size = isSelected ? 26 : (isSearchHit ? 20 : 16);
+        html += '<button class="pointDot point-dot'+(pt.general?' general':'')+(pt.mainCutoff?' maincutoff':'')+dotClass+'" data-point="'+pt.id+'" style="left:'+pt.x+'%;top:'+pt.y+'%;width:'+size+'px;height:'+size+'px;font-size:8px;">'+ (pt.mainCutoff?'⏻':(pt.general?'⚡':esc(pointNumberLabel(pt)))) +'</button>';
       });
       html += '</div>';
     } else {
@@ -384,6 +399,7 @@
     if (searchInput) {
       searchInput.addEventListener("input", function(e){
         state.query = e.target.value;
+        state.highlight = null;
         render();
         var again = document.getElementById("searchInput");
         if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
@@ -392,10 +408,16 @@
       if (searchMic) attachSearchMic(searchMic);
     }
 
+    var btnShowAllMatches = document.getElementById("btnShowAllMatches");
+    if (btnShowAllMatches) btnShowAllMatches.addEventListener("click", function(){
+      state.highlight = null;
+      render();
+    });
+
     document.querySelectorAll("[data-jump]").forEach(function(el){
       el.addEventListener("click", function(){
+        state.highlight = el.dataset.jump;
         state.openPointId = el.dataset.jump;
-        state.query = "";
         render();
       });
     });
