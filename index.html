@@ -225,6 +225,27 @@
       rec.start();
     });
   }
+  // Buscador: escribe directamente en state.query en vez de tocar el <input>,
+  // así nunca depende de un nodo del DOM que pueda quedar obsoleto tras un re-render.
+  function attachSearchMic(btn){
+    if (!speechSupported()) { btn.style.opacity = "0.35"; btn.title = "Dictado no disponible en este navegador"; return; }
+    var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    btn.addEventListener("click", function(){
+      var rec = new Rec();
+      rec.lang = "es-ES";
+      rec.interimResults = false;
+      btn.style.color = C.warn;
+      state.query = "";
+      render();
+      rec.onresult = function(e){
+        state.query = e.results[0][0].transcript;
+        render();
+      };
+      rec.onend = function(){ btn.style.color = ""; };
+      rec.onerror = function(){ btn.style.color = ""; };
+      rec.start();
+    });
+  }
 
   // ---------- search ----------
   function searchTerms(q){
@@ -365,7 +386,7 @@
         if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
       });
       var searchMic = document.getElementById("searchMic");
-      if (searchMic) attachMic(searchInput, searchMic, true);
+      if (searchMic) attachSearchMic(searchMic);
     }
 
     document.querySelectorAll("[data-jump]").forEach(function(el){
