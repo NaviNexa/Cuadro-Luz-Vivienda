@@ -153,7 +153,8 @@
     highlight: null,
     toast: null,
     showPrint: false,
-    confirmDeletePoint: null
+    confirmDeletePoint: null,
+    pointsLocked: true
   };
 
   function seed(){
@@ -355,6 +356,9 @@
       '<button id="btnUploadPlan" class="btn-ghost" style="flex:1;">'+(d.planImage?'Cambiar foto':'Subir foto del cuadro')+'</button>' +
       (d.planImage ? '<button id="btnAddPoint" class="btn-accent" style="flex:1;">'+(state.addMode?'Toca el plano…':'+ Añadir PIA')+'</button>' : '') +
     '</div>';
+    if (d.planImage && d.points.length > 0) {
+      html += '<button id="btnToggleLock" class="btn-ghost" style="width:100%;margin-top:8px;">'+(state.pointsLocked?'🔒 Puntos bloqueados (toca para desbloquear)':'🔓 Puntos desbloqueados (se pueden mover)')+'</button>';
+    }
     if (d.planImage && d.points.length > 1) {
       html += '<button id="btnAlignRows" class="btn-ghost" style="width:100%;margin-top:8px;">↔ Alinear filas</button>';
     }
@@ -458,6 +462,13 @@
       render();
     });
 
+    var btnToggleLock = document.getElementById("btnToggleLock");
+    if (btnToggleLock) btnToggleLock.addEventListener("click", function(){
+      state.pointsLocked = !state.pointsLocked;
+      render();
+      toast(state.pointsLocked ? "Puntos bloqueados" : "Puntos desbloqueados");
+    });
+
     var btnAlignRows = document.getElementById("btnAlignRows");
     if (btnAlignRows) btnAlignRows.addEventListener("click", function(){
       alignPointsIntoRows(d.points);
@@ -505,6 +516,11 @@
           e.stopPropagation();
           var pt = d.points.find(function(p){ return p.id === b.dataset.point; });
           if (!pt) return;
+          if (state.pointsLocked) {
+            state.openPointId = pt.id;
+            render();
+            return;
+          }
           var rect = canvas.getBoundingClientRect();
           var startX = e.clientX, startY = e.clientY;
           var moved = false;
